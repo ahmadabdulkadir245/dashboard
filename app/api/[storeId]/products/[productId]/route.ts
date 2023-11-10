@@ -2,7 +2,21 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs";
 import prismadb from "@/lib/prismadb";
 
-const allowCors = (handler) => async (req, res) => {
+interface ProductRequestBody {
+  name: string;
+  price: number;
+  categoryId: string;
+  images: { url: string }[];
+  colorId: string;
+  sizeId: string;
+  isFeatured: boolean;
+  isArchived: boolean;
+}
+
+const allowCors = (handler: (req, res) => Promise<void>) => async (
+  req: Request,
+  res: Response
+) => {
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
@@ -28,7 +42,7 @@ export const getConfig = () => ({
   },
 });
 
-export default allowCors(async (req, res) => {
+export default allowCors(async (req: Request, res: Response) => {
   const { method } = req;
 
   if (method === "GET") {
@@ -46,7 +60,7 @@ export default allowCors(async (req, res) => {
   return new NextResponse("Method not allowed", { status: 405 });
 });
 
-async function handleGet(req, res) {
+async function handleGet(req: Request, res: Response) {
   try {
     const { params } = req;
 
@@ -56,16 +70,16 @@ async function handleGet(req, res) {
 
     const product = await prismadb.product.findUnique({
       where: {
-        id: params.productId
+        id: params.productId,
       },
       include: {
         images: true,
         category: true,
         size: true,
         color: true,
-      }
+      },
     });
-  
+
     return NextResponse.json(product);
   } catch (error) {
     console.log('[PRODUCT_GET]', error);
@@ -73,7 +87,7 @@ async function handleGet(req, res) {
   }
 }
 
-async function handleDelete(req, res) {
+async function handleDelete(req: Request, res: Response) {
   try {
     const { params } = req;
     const { userId } = auth();
@@ -89,8 +103,8 @@ async function handleDelete(req, res) {
     const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId
-      }
+        userId,
+      },
     });
 
     if (!storeByUserId) {
@@ -99,10 +113,10 @@ async function handleDelete(req, res) {
 
     const product = await prismadb.product.delete({
       where: {
-        id: params.productId
+        id: params.productId,
       },
     });
-  
+
     return NextResponse.json(product);
   } catch (error) {
     console.log('[PRODUCT_DELETE]', error);
@@ -110,14 +124,23 @@ async function handleDelete(req, res) {
   }
 }
 
-async function handlePatch(req, res) {
+async function handlePatch(req: Request, res: Response) {
   try {
     const { params } = req;
     const { userId } = auth();
 
-    const body = await req.json();
+    const body: ProductRequestBody = await req.json();
 
-    const { name, price, categoryId, images, colorId, sizeId, isFeatured, isArchived } = body;
+    const {
+      name,
+      price,
+      categoryId,
+      images,
+      colorId,
+      sizeId,
+      isFeatured,
+      isArchived,
+    } = body;
 
     if (!userId) {
       return new NextResponse("Unauthenticated", { status: 403 });
@@ -154,8 +177,8 @@ async function handlePatch(req, res) {
     const storeByUserId = await prismadb.store.findFirst({
       where: {
         id: params.storeId,
-        userId
-      }
+        userId,
+      },
     });
 
     if (!storeByUserId) {
@@ -164,7 +187,7 @@ async function handlePatch(req, res) {
 
     await prismadb.product.update({
       where: {
-        id: params.productId
+        id: params.productId,
       },
       data: {
         name,
@@ -182,19 +205,17 @@ async function handlePatch(req, res) {
 
     const product = await prismadb.product.update({
       where: {
-        id: params.productId
+        id: params.productId,
       },
       data: {
         images: {
           createMany: {
-            data: [
-              ...images.map((image: { url: string }) => image),
-            ],
+            data: [...images.map((image) => image)],
           },
         },
       },
-    })
-  
+    });
+
     return NextResponse.json(product);
   } catch (error) {
     console.log('[PRODUCT_PATCH]', error);
