@@ -1,13 +1,55 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs";
-
 import prismadb from "@/lib/prismadb";
 
-export async function GET(
-  req: Request,
-  { params }: { params: { productId: string } }
-) {
+const allowCors = (handler) => async (req, res) => {
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET,OPTIONS,PATCH,DELETE,POST,PUT"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
+
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  return handler(req, res);
+};
+
+export const getConfig = () => ({
+  api: {
+    bodyParser: false,
+  },
+});
+
+export default allowCors(async (req, res) => {
+  const { method } = req;
+
+  if (method === "GET") {
+    return handleGet(req, res);
+  }
+
+  if (method === "DELETE") {
+    return handleDelete(req, res);
+  }
+
+  if (method === "PATCH") {
+    return handlePatch(req, res);
+  }
+
+  return new NextResponse("Method not allowed", { status: 405 });
+});
+
+async function handleGet(req, res) {
   try {
+    const { params } = req;
+
     if (!params.productId) {
       return new NextResponse("Product id is required", { status: 400 });
     }
@@ -29,13 +71,11 @@ export async function GET(
     console.log('[PRODUCT_GET]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-};
+}
 
-export async function DELETE(
-  req: Request,
-  { params }: { params: { productId: string, storeId: string } }
-) {
+async function handleDelete(req, res) {
   try {
+    const { params } = req;
     const { userId } = auth();
 
     if (!userId) {
@@ -68,14 +108,11 @@ export async function DELETE(
     console.log('[PRODUCT_DELETE]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-};
+}
 
-
-export async function PATCH(
-  req: Request,
-  { params }: { params: { productId: string, storeId: string } }
-) {
+async function handlePatch(req, res) {
   try {
+    const { params } = req;
     const { userId } = auth();
 
     const body = await req.json();
@@ -163,4 +200,4 @@ export async function PATCH(
     console.log('[PRODUCT_PATCH]', error);
     return new NextResponse("Internal error", { status: 500 });
   }
-};
+}
